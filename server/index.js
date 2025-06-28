@@ -4,37 +4,37 @@ const cors = require("cors");
 const port = 3042;
 const secp = require("ethereum-cryptography/secp256k1");
 const { toHex, hexToBytes } = require("ethereum-cryptography/utils");
-const { keccak256 } = require("ethereum-cryptography/keccak")
+const { keccak256 } = require("ethereum-cryptography/keccak");
 
 
 function generateWallets() {
   const wallets = {};
 
   for (let i = 0; i < 3; i++) {
-    const wallet = {};
-
     const privateKey = toHex(secp.utils.randomPrivateKey());
     const publicKey = toHex(secp.getPublicKey(privateKey));
     const address = _publicKeyToAddress(publicKey);
-    wallet.balance = (i + 1) * 100;
-    wallets[address] = wallet;
+    wallets[address] = {
+      privateKey: privateKey,
+      balance: (i + 1) * 100,
+    };
   }
   return wallets;
 }
 
-const balances = generateWallets();
-console.log('Wallets:', balances)
+const wallets = generateWallets();
+console.log('Wallets:', wallets)
 
 app.use(cors());
 app.use(express.json());
 
 app.get("/wallets", (req, res) => {
-  res.status(200).send(balances);
+  res.status(200).send(wallets);
 })
 
 app.get("/balance/:address", (req, res) => {
   const { address } = req.params;
-  const balance = balances[address]?.balance || 0;
+  const balance = wallets[address]?.balance || 0;
   res.send({ balance });
 });
 
@@ -44,12 +44,12 @@ app.post("/send", (req, res) => {
   setInitialBalance(sender);
   setInitialBalance(recipient);
 
-  if (balances[sender] < amount) {
+  if (wallets[sender] < amount) {
     res.status(400).send({ message: "Not enough funds!" });
   } else {
-    balances[sender] -= amount;
-    balances[recipient] += amount;
-    res.send({ balance: balances[sender] });
+    wallets[sender] -= amount;
+    wallets[recipient] += amount;
+    res.send({ balance: wallets[sender] });
   }
 });
 
@@ -58,8 +58,8 @@ app.listen(port, () => {
 });
 
 function setInitialBalance(address) {
-  if (!balances[address]) {
-    balances[address] = 0;
+  if (!wallets[address]) {
+    wallets[address] = 0;
   }
 }
 
