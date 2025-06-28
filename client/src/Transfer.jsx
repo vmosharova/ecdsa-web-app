@@ -1,11 +1,22 @@
 import { useState } from "react";
 import server from "./server";
+import { keccak256 } from "ethereum-cryptography/keccak";
+import { utf8ToBytes, toHex } from "ethereum-cryptography/utils";
+import { signSync } from "ethereum-cryptography/secp256k1";
 
 function Transfer({ address, setBalance }) {
   const [sendAmount, setSendAmount] = useState("");
   const [recipient, setRecipient] = useState("");
 
   const setValue = (setter) => (evt) => setter(evt.target.value);
+
+  function hashMessage(message) {
+    return keccak256(utf8ToBytes(message));
+  }
+
+  function signMessage(message) {
+    return signSync(message);
+  }
 
   async function transfer(evt) {
     evt.preventDefault();
@@ -40,7 +51,7 @@ function Transfer({ address, setBalance }) {
       <label>
         Recipient
         <input
-          placeholder="Type an address, for example: 0x2"
+          placeholder="Type an address (starts with '0x...')"
           value={recipient}
           onChange={setValue(setRecipient)}
         ></input>

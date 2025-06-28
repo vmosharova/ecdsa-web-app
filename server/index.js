@@ -3,41 +3,42 @@ const app = express();
 const cors = require("cors");
 const port = 3042;
 const secp = require("ethereum-cryptography/secp256k1");
-const { toHex } = require("ethereum-cryptography/utils");
+const { toHex, hexToBytes } = require("ethereum-cryptography/utils");
 const { keccak256 } = require("ethereum-cryptography/keccak")
 
-const privateKey1 = secp.utils.randomPrivateKey();
-console.log('privateKey1: ', toHex(privateKey1));
-const publicKey1 = secp.getPublicKey(privateKey1);
-console.log('publicKey1:', toHex(publicKey1));
-const privateKey2 = secp.utils.randomPrivateKey();
-console.log('privateKey2: ', toHex(privateKey2));
-const publicKey2 = secp.getPublicKey(privateKey2);
-console.log('publicKey2:', toHex(publicKey2));
-const privateKey3 = secp.utils.randomPrivateKey();
-console.log('privateKey3: ', toHex(privateKey3));
-const publicKey3 = secp.getPublicKey(privateKey3);
-console.log('publicKey3:', toHex(publicKey3));
+
+function generateWallets() {
+  const wallets = {};
+
+  for (let i = 0; i < 3; i++) {
+    const wallet = {};
+
+    const privateKey = toHex(secp.utils.randomPrivateKey());
+    console.log(`privateKey${i + 1}: ${privateKey}`);
+
+    const publicKey = toHex(secp.getPublicKey(privateKey));
+    console.log(`publicKey${i + 1}: ${publicKey}`);
+
+    const address = _publicKeyToAddress(publicKey);
+    console.log(`address${i + 1}: ${address}`);
+    
+    wallet.balance = (i + 1) * 100;
+
+    wallets[address] = wallet;
+  }
+  return wallets;
+}
+
+const balances = generateWallets();
+console.log('BALANCES:', balances)
 
 app.use(cors());
 app.use(express.json());
 
-function getAddress(publicKey) {
-  // shortened hash like in eth - slice(1) as it removes the 1st byte (uncompressed key):
-  return toHex(keccak256(piblickey.slice(1).slice(-20)));
-}
-
-const balances = {
-  [getAddress(publicKey1)]: 100,
-  [getAddress(publicKey2)]: 75,
-  [getAddress(publicKey1)]: 50
-};
-
-
 
 app.get("/balance/:address", (req, res) => {
   const { address } = req.params;
-  const balance = balances[address] || 0;
+  const balance = balances[address]?.balance || 0;
   res.send({ balance });
 });
 
@@ -64,4 +65,10 @@ function setInitialBalance(address) {
   if (!balances[address]) {
     balances[address] = 0;
   }
+}
+
+function _publicKeyToAddress(publicKey) {
+  const hash = keccak256(hexToBytes(publicKey).slice(1));
+  const address = toHex(hash.slice(-20));
+  return '0x' + address;
 }
