@@ -1,6 +1,8 @@
 import server from "./server";
 
-function Wallet({ address, setAddress, balance, setBalance }) {
+function Wallet({ address, setAddress, balance, setBalance, wallets }) {
+  const walletAddresses = Object.keys(wallets)
+
   async function onChange(evt) {
     const address = evt.target.value;
     setAddress(address);
@@ -16,12 +18,16 @@ function Wallet({ address, setAddress, balance, setBalance }) {
 
   return (
     <div className="container wallet">
-      <h1>Your Wallet</h1>
+      <h1>Your Wallets</h1>
 
-      <label>
-        Wallet Address
-        <input placeholder="Type an address, for example: 0x1" value={address} onChange={onChange}></input>
-      </label>
+      <select value={address} onChange={onChange}>
+        <option value="">Select a wallet address</option>
+        {walletAddresses.map((addr) => (
+          <option key={addr} value={addr}>
+            {addr}
+          </option>
+        ))}
+      </select>
 
       <div className="balance">Balance: {balance}</div>
     </div>

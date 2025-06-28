@@ -14,27 +14,23 @@ function generateWallets() {
     const wallet = {};
 
     const privateKey = toHex(secp.utils.randomPrivateKey());
-    console.log(`privateKey${i + 1}: ${privateKey}`);
-
     const publicKey = toHex(secp.getPublicKey(privateKey));
-    console.log(`publicKey${i + 1}: ${publicKey}`);
-
     const address = _publicKeyToAddress(publicKey);
-    console.log(`address${i + 1}: ${address}`);
-    
     wallet.balance = (i + 1) * 100;
-
     wallets[address] = wallet;
   }
   return wallets;
 }
 
 const balances = generateWallets();
-console.log('BALANCES:', balances)
+console.log('Wallets:', balances)
 
 app.use(cors());
 app.use(express.json());
 
+app.get("/wallets", (req, res) => {
+  res.status(200).send(balances);
+})
 
 app.get("/balance/:address", (req, res) => {
   const { address } = req.params;
