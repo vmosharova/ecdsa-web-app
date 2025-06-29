@@ -63,7 +63,9 @@ function Transfer({ address, setBalance, wallets }) {
       <h1>Send Transaction</h1>
 
       <label>
-        Send Amount
+        <span class="subtitle">
+          Send Amount
+        </span>
         <input
           placeholder="1, 2, 3..."
           value={sendAmount}
@@ -72,7 +74,9 @@ function Transfer({ address, setBalance, wallets }) {
       </label>
 
       <label>
-        Recipient
+        <span class="subtitle">
+          Recipient
+        </span>
         <input
           placeholder="Type an address (starts with '0x...')"
           value={recipient}
