@@ -1,8 +1,5 @@
 import { useState } from "react";
 import server from "./server";
-import { keccak256 } from "ethereum-cryptography/keccak";
-import { utf8ToBytes, toHex } from "ethereum-cryptography/utils";
-import { signSync } from "ethereum-cryptography/secp256k1";
 
 function Transfer({ address, setBalance, wallets }) {
   const [sendAmount, setSendAmount] = useState("");
@@ -10,41 +7,20 @@ function Transfer({ address, setBalance, wallets }) {
 
   const setValue = (setter) => (evt) => setter(evt.target.value);
 
-  function hashMessage(message) {
-    return keccak256(utf8ToBytes(message));
-  }
-
-  async function signTx(privateKey, tx) {
-    const message = JSON.stringify(tx);
-    const messageHash = hashMessage(message);
-    const signature = signSync(messageHash, privateKey, { recovered: true });
-    const [sig, recoveryBit] = signature;
-    return { signature: toHex(sig), recoveryBit };
-  }
-
   async function transfer(evt) {
     evt.preventDefault();
 
     try {
-      const sender = wallets[address];
-
-      if (!sender) {
-        alert("Sender wallet not found!");
+      if (!address) {
+        alert("Please select a wallet!");
         return;
       }
 
-      let tx = {
+      const tx = {
         sender: address,
         recipient,
         sendAmount: Number(sendAmount),
       };
-
-      const { signature, recoveryBit } = await signTx(sender.privateKey, tx);
-      const msgHash = hashMessage(JSON.stringify(tx));
-
-      tx.signature = signature;
-      tx.msgHash = toHex(msgHash);
-      tx.recoveryBit = recoveryBit;
 
       const { data } = await server.post(`send`, tx);
       setBalance(data.balance);

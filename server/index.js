@@ -3,7 +3,7 @@ const app = express();
 const cors = require("cors");
 const port = 3042;
 const secp = require("ethereum-cryptography/secp256k1");
-const { toHex, hexToBytes } = require("ethereum-cryptography/utils");
+const { toHex, hexToBytes, utf8ToBytes } = require("ethereum-cryptography/utils");
 const { keccak256 } = require("ethereum-cryptography/keccak");
 
 
@@ -25,6 +25,18 @@ function generateWallets() {
 const wallets = generateWallets();
 console.log('Wallets:', wallets)
 
+function hashMessage(message) {
+  return keccak256(utf8ToBytes(message));
+}
+
+function signTx(privateKey, tx) {
+  const message = JSON.stringify(tx);
+  const messageHash = hashMessage(message);
+  const signature = secp.signSync(messageHash, privateKey, { recovered: true });
+  const [sig, recoveryBit] = signature;
+  return { signature: toHex(sig), recoveryBit, msgHash: toHex(messageHash) };
+}
+
 app.use(cors());
 app.use(express.json());
 
@@ -39,35 +51,49 @@ app.get("/balance/:address", (req, res) => {
 });
 
 app.post("/send", (req, res) => {
-  const { sender, recipient, sendAmount, msgHash, signature, recoveryBit } = req.body;
+  const { sender, recipient, sendAmount } = req.body;
 
   setInitialBalance(sender);
   setInitialBalance(recipient);
 
-  // Convert hex signature back to bytes
-  const sigBytes = hexToBytes(signature);
+  const originalSenderWallet = wallets[sender];
+
+  if (!originalSenderWallet) {
+    return res.status(400).send({ message: "Sender wallet not found!" });
+  }
+
+  if (originalSenderWallet.balance < sendAmount) {
+    return res.status(400).send({ message: "Not enough funds!" });
+  }
+
+  const tx = { sender, recipient, sendAmount };
   
-  // Convert hex hash back to bytes
+  const { signature, recoveryBit, msgHash } = signTx(originalSenderWallet.privateKey, tx);
+  
+  const sigBytes = hexToBytes(signature);
   const hashBytes = hexToBytes(msgHash);
   
-  // Recover public key from signature
   const recoveredPublicKey = secp.recoverPublicKey(hashBytes, sigBytes, recoveryBit);
   const recoveredAddress = _publicKeyToAddress(toHex(recoveredPublicKey));
 
-  console.log("Recovered address:", recoveredAddress, "Sender:", sender)
+  console.log("Original sender:", sender);
+  console.log("Recovered address:", recoveredAddress);
 
   if (recoveredAddress !== sender) {
     return res.status(400).send({
-      message: "You cannot transfer tokens from another account.",
+      message: "Signature verification failed!",
     });
   }
-  if (wallets[sender].balance < sendAmount) {
-    return res.status(400).send({ message: "Not enough funds!" });
-  } else {
-    wallets[sender].balance -= sendAmount;
-    wallets[recipient].balance += sendAmount;
-    res.send({ balance: wallets[sender].balance });
-  }
+
+  wallets[sender].balance -= sendAmount;
+  wallets[recipient].balance += sendAmount;
+  
+  res.send({ 
+    balance: wallets[sender].balance,
+    signature,
+    msgHash,
+    recoveryBit
+  });
 });
 
 app.listen(port, () => {
