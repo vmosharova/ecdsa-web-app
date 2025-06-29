@@ -39,17 +39,34 @@ app.get("/balance/:address", (req, res) => {
 });
 
 app.post("/send", (req, res) => {
-  const { sender, recipient, amount } = req.body;
+  const { sender, recipient, sendAmount, msgHash, signature, recoveryBit } = req.body;
 
   setInitialBalance(sender);
   setInitialBalance(recipient);
 
-  if (wallets[sender] < amount) {
-    res.status(400).send({ message: "Not enough funds!" });
+  // Convert hex signature back to bytes
+  const sigBytes = hexToBytes(signature);
+  
+  // Convert hex hash back to bytes
+  const hashBytes = hexToBytes(msgHash);
+  
+  // Recover public key from signature
+  const recoveredPublicKey = secp.recoverPublicKey(hashBytes, sigBytes, recoveryBit);
+  const recoveredAddress = _publicKeyToAddress(toHex(recoveredPublicKey));
+
+  console.log("Recovered address:", recoveredAddress, "Sender:", sender)
+
+  if (recoveredAddress !== sender) {
+    return res.status(400).send({
+      message: "You cannot transfer tokens from another account.",
+    });
+  }
+  if (wallets[sender].balance < sendAmount) {
+    return res.status(400).send({ message: "Not enough funds!" });
   } else {
-    wallets[sender] -= amount;
-    wallets[recipient] += amount;
-    res.send({ balance: wallets[sender] });
+    wallets[sender].balance -= sendAmount;
+    wallets[recipient].balance += sendAmount;
+    res.send({ balance: wallets[sender].balance });
   }
 });
 
@@ -59,7 +76,7 @@ app.listen(port, () => {
 
 function setInitialBalance(address) {
   if (!wallets[address]) {
-    wallets[address] = 0;
+    wallets[address] = { balance: 0 };
   }
 }
 
